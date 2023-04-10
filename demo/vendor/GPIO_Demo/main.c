@@ -1,0 +1,146 @@
+/********************************************************************************************************
+ * @file	main.c
+ *
+ * @brief	This is the source file for B85m
+ *
+ * @author	Driver Group
+ * @date	2018
+ *
+ * @par     Copyright (c) 2018, Telink Semiconductor (Shanghai) Co., Ltd. ("TELINK")
+ *          All rights reserved.
+ *
+ *          Licensed under the Apache License, Version 2.0 (the "License");
+ *          you may not use this file except in compliance with the License.
+ *          You may obtain a copy of the License at
+ *
+ *              http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *          Unless required by applicable law or agreed to in writing, software
+ *          distributed under the License is distributed on an "AS IS" BASIS,
+ *          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *          See the License for the specific language governing permissions and
+ *          limitations under the License.
+ *
+ *******************************************************************************************************/
+#include "app_config.h"
+#include "calibration.h"
+
+
+extern void user_init();
+extern void main_loop (void);
+volatile unsigned int gpio_irq_cnt;
+volatile unsigned int gpio_set_irq_cnt;
+/**
+ * @brief		This function serves to handle the interrupt of MCU
+ * @param[in] 	none
+ * @return 		none
+ */
+_attribute_ram_code_sec_noinline_ void irq_handler(void)
+{
+#if (GPIO_MODE == GPIO_IRQ )
+
+	if((reg_irq_src & FLD_IRQ_GPIO_EN)==FLD_IRQ_GPIO_EN){
+		reg_irq_src |= FLD_IRQ_GPIO_EN; // clear the relevant irq
+			gpio_irq_cnt++;
+#if (GPIO_DEMO_MODE == GPIO_DEMO_KEY)
+			gpio_write(LED2, 1);
+#elif (GPIO_DEMO_MODE == GPIO_DEMO_SQUARE_WAVE)
+			gpio_toggle(LED2);
+#endif
+	}
+
+#elif(GPIO_MODE == GPIO_IRQ_RSIC0)
+
+	if((reg_irq_src & FLD_IRQ_GPIO_RISC0_EN)==FLD_IRQ_GPIO_RISC0_EN){
+		reg_irq_src |= FLD_IRQ_GPIO_RISC0_EN; // clear the relevant irq
+			gpio_irq_cnt++;
+#if (GPIO_DEMO_MODE == GPIO_DEMO_KEY)
+			gpio_write(LED3, 1);
+#elif (GPIO_DEMO_MODE == GPIO_DEMO_SQUARE_WAVE)
+			gpio_toggle(LED3);
+#endif
+	}
+
+#elif(GPIO_MODE == GPIO_IRQ_RSIC1)
+
+	if((reg_irq_src & FLD_IRQ_GPIO_RISC1_EN)==FLD_IRQ_GPIO_RISC1_EN){
+		reg_irq_src |= FLD_IRQ_GPIO_RISC1_EN; // clear the relevant irq
+
+			gpio_irq_cnt++;
+#if (GPIO_DEMO_MODE == GPIO_DEMO_KEY)
+			gpio_write(LED4, 1);
+#elif (GPIO_DEMO_MODE == GPIO_DEMO_SQUARE_WAVE)
+			gpio_toggle(LED4);
+#endif
+	}
+#elif((GPIO_MODE == GPIO_SEL_IRQ_SRC)&&(MCU_CORE_B80))
+	static unsigned char gpio_irqsrc;
+#if (GPIO_DEMO_MODE == GPIO_DEMO_KEY)
+	gpio_irqsrc = (reg_gpio_irq_from_pad & KEY1);
+	if(gpio_irqsrc)
+	{
+		reg_gpio_irq_from_pad |= KEY1;
+		gpio_irq_cnt++;
+		gpio_write(LED1, 1);
+	}
+#elif (GPIO_DEMO_MODE == GPIO_DEMO_SQUARE_WAVE)
+	gpio_irqsrc = (reg_gpio_irq_from_pad & IRQ_PIN);
+	if(gpio_irqsrc)
+	{
+		reg_gpio_irq_from_pad |= IRQ_PIN;
+		gpio_irq_cnt++;
+		gpio_toggle(LED1);
+	}
+#endif
+#endif
+
+}
+
+/**
+ * @brief		This is main function
+ * @param[in]	none
+ * @return      none
+ */
+int main (void)   //must on ramcode
+{
+
+#if(MCU_CORE_B80||MCU_CORE_B89)
+	cpu_wakeup_init(EXTERNAL_XTAL_24M);
+#elif (MCU_CORE_B85)
+	cpu_wakeup_init();
+#elif (MCU_CORE_B87)
+	cpu_wakeup_init(LDO_MODE, EXTERNAL_XTAL_24M);
+
+#endif
+#if(MCU_CORE_B80||MCU_CORE_B89)
+	wd_32k_stop();
+#endif
+#if (MCU_CORE_B85) || (MCU_CORE_B87)
+	//Note: This function must be called, otherwise an abnormal situation may occur.
+	//Called immediately after cpu_wakeup_init, set in other positions, some calibration values may not take effect.
+	user_read_flash_value_calib();
+#elif (MCU_CORE_B89)
+	//Note: This function must be called, otherwise an abnormal situation may occur.
+	//Called immediately after cpu_wakeup_init, set in other positions, some calibration values may not take effect.
+	user_read_otp_value_calib();
+#elif (MCU_CORE_B80)
+	//Note: This function must be called, otherwise an abnormal situation may occur.
+	//Called immediately after cpu_wakeup_init, set in other positions, some calibration values may not take effect.
+#if(PACKAGE_TYPE == OTP_PACKAGE)
+	user_read_otp_value_calib();
+#elif(PACKAGE_TYPE == FLASH_PACKAGE)
+	user_read_flash_value_calib();
+#endif
+#endif
+
+	clock_init(SYS_CLK);
+
+	gpio_init(0);
+
+	user_init();
+
+	while (1) {
+		main_loop ();
+	}
+	return 0;
+}

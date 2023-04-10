@@ -1,0 +1,60 @@
+/********************************************************************************************************
+ * @file	app.c
+ *
+ * @brief	This is the source file for B85m
+ *
+ * @author	Driver Group
+ * @date	2018
+ *
+ * @par     Copyright (c) 2018, Telink Semiconductor (Shanghai) Co., Ltd. ("TELINK")
+ *          All rights reserved.
+ *
+ *          Licensed under the Apache License, Version 2.0 (the "License");
+ *          you may not use this file except in compliance with the License.
+ *          You may obtain a copy of the License at
+ *
+ *              http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *          Unless required by applicable law or agreed to in writing, software
+ *          distributed under the License is distributed on an "AS IS" BASIS,
+ *          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *          See the License for the specific language governing permissions and
+ *          limitations under the License.
+ *
+ *******************************************************************************************************/
+#include "app_config.h"
+
+void user_init()
+{
+	sleep_ms(1000);
+	//1.init the LED pin,for indication
+	gpio_set_func(LED1|LED2|LED3|LED4 ,AS_GPIO);
+	gpio_set_output_en(LED1|LED2|LED3|LED4, 1); 		//enable output
+	gpio_set_input_en(LED1|LED2|LED3|LED4 ,0);			//disable input
+	gpio_write(LED1|LED2|LED3|LED4, 0);              	//LED On
+
+	//Only B80 B85 and B87 has support USB, B89 has not USB module, not support USB printf.
+#if ((DEBUG_BUS == DEBUG_USB) && (MCU_CORE_B80||MCU_CORE_B85 || MCU_CORE_B87))
+	usb_set_pin_en();
+	sleep_ms(1000);
+	printf("\n Driver version: %2x \n Copyright (c) %d Telink semiconductor (%s) Ltd, Co \n",0xa001,2019,"shanghai");
+#else
+	printf("\n Driver version: %2x \n Copyright (c) %d Telink semiconductor (%s) Ltd, Co \n",0xa001,2019,"shanghai");
+#endif
+
+}
+
+
+/////////////////////////////////////////////////////////////////////
+// main loop flow
+/////////////////////////////////////////////////////////////////////
+void main_loop (void)
+{
+	sleep_ms(1000);
+	gpio_toggle(LED1|LED2|LED3|LED4);
+	printf(" Hello world! \n");
+}
+
+
+
+
